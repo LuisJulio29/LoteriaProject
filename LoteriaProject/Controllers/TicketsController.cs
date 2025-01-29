@@ -43,16 +43,39 @@ namespace LoteriaProject.Controllers
         }
 
         [HttpGet("GetTicketByNumber/{number}")]
-
         public async Task<ActionResult<IEnumerable<Ticket>>> GetTicketByNumber(string number)
         {
-            string reversedNumber = new string(number.Reverse().ToArray());
-            var tickets = await _context.Tickets.Where(t => t.Number == number || t.Number == reversedNumber).ToListAsync();
-            if (tickets == null)
+            var permutations = GeneratePermutations(number);
+            string lastThreeDigits = number.Length >= 3 ? number.Substring(number.Length - 3) : number;
+            var tickets = await _context.Tickets
+                .Where(t => permutations.Contains(t.Number) || (t.Number.Length >= 3 && t.Number.EndsWith(lastThreeDigits))).ToListAsync();
+            if (tickets == null || !tickets.Any())
             {
                 return NotFound();
             }
             return tickets;
+        }
+
+        private HashSet<string> GeneratePermutations(string number)
+        {
+            var result = new HashSet<string>();
+            if (number.Length <= 1)
+            {
+                result.Add(number);
+                return result;
+            }
+
+            for (int i = 0; i < number.Length; i++)
+            {
+                char currentChar = number[i];
+                string remainingChars = number.Substring(0, i) + number.Substring(i + 1);
+                var subPermutations = GeneratePermutations(remainingChars);
+                foreach (string subPermutation in subPermutations)
+                {
+                    result.Add(currentChar + subPermutation);
+                }
+            }
+            return result;
         }
 
         // PUT: api/Tickets/5
