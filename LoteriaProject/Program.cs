@@ -34,10 +34,9 @@ options.SaveToken = true;
 
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(
-        builder =>
+    options.AddPolicy("AllowSpecificOrigin", policy =>
         {
-            builder.WithOrigins("http://localhost:3000")
+            policy.WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
             .AllowAnyMethod();
         });
