@@ -22,30 +22,6 @@ namespace LoteriaProject.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("LoteriaProject.Model.Patron", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Jornada")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PatronNumbers")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Patron");
-                });
-
             modelBuilder.Entity("LoteriaProject.Model.Ticket", b =>
                 {
                     b.Property<int>("Id")
