@@ -42,6 +42,18 @@ namespace LoteriaProject.Controllers
             return patron;
         }
 
+        [HttpGet("Search")]
+        public async Task<ActionResult<Patron>> GetPatronByDate(DateTime date, String Jornada)
+        {
+            var patron = await _context.Patrons.Where(p => p.Date.Date == date.Date && p.Jornada == Jornada).FirstOrDefaultAsync();
+
+            if (patron == null)
+            {
+                return NotFound();
+            }
+            return patron;
+        }
+
         // PUT: api/Patrons/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
@@ -84,6 +96,48 @@ namespace LoteriaProject.Controllers
             return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
         }
 
+        [HttpPost("Calculate")]
+        public async Task<ActionResult<Patron>> CalculatePatron(DateTime date, string Jornada)
+        {
+            // Obtener tickets que coincidan con la fecha y jornada
+            var tickets = await _context.Tickets
+                .Where(t => t.Date.Date == date.Date && t.Jornada == Jornada)
+                .ToListAsync();
+
+            if (!tickets.Any())
+            {
+                return NotFound($"No se encontraron tickets para la fecha {date.ToShortDateString()} y jornada {Jornada}");
+            }
+
+            // Inicializar array para contar repeticiones (índice 0-9)
+            int[] patronNumbers = new int[10];
+
+            // Contar repeticiones de cada número
+            foreach (var ticket in tickets)
+            {
+                foreach (char digit in ticket.Number)
+                {
+                    if (int.TryParse(digit.ToString(), out int number))
+                    {
+                        patronNumbers[number]++;
+                    }
+                }
+            }
+
+            // Crear nuevo patrón
+            var patron = new Patron
+            {
+                Date = date.Date,
+                Jornada = Jornada,
+                PatronNumbers = patronNumbers
+            };
+
+            // Guardar en la base de datos
+            _context.Patrons.Add(patron);
+            await _context.SaveChangesAsync();
+
+            return Ok(patron);
+        }
         // DELETE: api/Patrons/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePatron(int id)
