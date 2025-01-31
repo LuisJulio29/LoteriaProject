@@ -43,9 +43,11 @@ namespace LoteriaProject.Controllers
         }
 
         [HttpGet("Search")]
-        public async Task<ActionResult<Patron>> GetPatronByDate(DateTime date, String Jornada)
+        public async Task<ActionResult<Patron>> GetPatronByDate([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
-            var patron = await _context.Patrons.Where(p => p.Date.Date == date.Date && p.Jornada == Jornada).FirstOrDefaultAsync();
+            var patron = await _context.Patrons
+                .Where(p => p.Date.Date == date.Date && p.Jornada == Jornada)
+                .FirstOrDefaultAsync();
 
             if (patron == null)
             {
@@ -97,7 +99,7 @@ namespace LoteriaProject.Controllers
         }
 
         [HttpPost("Calculate")]
-        public async Task<ActionResult<Patron>> CalculatePatron(DateTime date, string Jornada)
+        public async Task<ActionResult<Patron>> CalculatePatron([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
             // Obtener tickets que coincidan con la fecha y jornada
             var tickets = await _context.Tickets
