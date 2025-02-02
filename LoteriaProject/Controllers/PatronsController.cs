@@ -56,6 +56,32 @@ namespace LoteriaProject.Controllers
             return patron;
         }
 
+        [HttpPost("CalculateRedundancy")]
+        public async Task<ActionResult<List<PatronRedundancy>>> CalculateRedundancy([FromBody] Patron patron)
+        {
+            var allPatrons = await _context.Patrons.Where(p => p.Id != patron.Id).ToListAsync();
+            var redundancies = new List<PatronRedundancy>();
+            foreach (var existingPatron in allPatrons)
+            {
+                int matchCount = 0;
+                for (int i = 0; i < 10; i++)
+                {
+                    if (patron.PatronNumbers[i] == existingPatron.PatronNumbers[i])
+                    {
+                        matchCount++;
+                    }
+                }
+                if (matchCount > 0)
+                {
+                    redundancies.Add(new PatronRedundancy
+                    {
+                        Patron = existingPatron,
+                        RedundancyCount = matchCount
+                    });
+                }
+            }
+            return Ok(redundancies.OrderByDescending(r => r.RedundancyCount).ToList());
+        }
         // PUT: api/Patrons/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
@@ -160,5 +186,11 @@ namespace LoteriaProject.Controllers
         {
             return _context.Patrons.Any(e => e.Id == id);
         }
+        public class PatronRedundancy
+        {
+            public Patron Patron { get; set; }
+            public int RedundancyCount { get; set; }
+        }
+
     }
 }
