@@ -56,6 +56,17 @@ namespace LoteriaProject.Controllers
             return tickets;
         }
 
+        [HttpGet("GetTicketByDate")]
+        public async Task<ActionResult<IEnumerable<Ticket>>> GetTicketByDate([FromQuery] DateTime date, [FromQuery] string jornada)
+        {
+            var tickets = await _context.Tickets
+                .Where(t => t.Date.Date == date.Date && t.Jornada == jornada).ToListAsync();
+            if (tickets == null || !tickets.Any())
+            {
+                return NotFound();
+            }
+            return tickets;
+        }
         private HashSet<string> GeneratePermutations(string number)
         {
             var result = new HashSet<string>();
