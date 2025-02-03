@@ -57,10 +57,11 @@ namespace LoteriaProject.Controllers
         }
 
         [HttpGet("GetTicketByDate")]
-        public async Task<ActionResult<IEnumerable<Ticket>>> GetTicketByDate([FromQuery] DateTime date, [FromQuery] string jornada)
+        public async Task<ActionResult<IEnumerable<Ticket>>> GetTicketByDate([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
+            var jornadasToSearch = Jornada.ToLower() == "dia" ? new[] { "Dia", "Tarde" } : new[] { Jornada };
             var tickets = await _context.Tickets
-                .Where(t => t.Date.Date == date.Date && t.Jornada == jornada).ToListAsync();
+                .Where(t => t.Date.Date == date.Date && jornadasToSearch.Contains(t.Jornada)).ToListAsync();
             if (tickets == null || !tickets.Any())
             {
                 return NotFound();
