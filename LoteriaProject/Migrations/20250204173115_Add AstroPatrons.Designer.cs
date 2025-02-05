@@ -4,6 +4,7 @@ using LoteriaProject.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LoteriaProject.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250204173115_Add AstroPatrons")]
+    partial class AddAstroPatrons
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,10 +53,6 @@ namespace LoteriaProject.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("Row4")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Sign")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -110,7 +109,7 @@ namespace LoteriaProject.Migrations
                         .HasMaxLength(4)
                         .HasColumnType("varchar(4)");
 
-                    b.Property<string>("sign")
+                    b.Property<string>("sing")
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
