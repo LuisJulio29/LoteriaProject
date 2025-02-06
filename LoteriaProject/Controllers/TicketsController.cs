@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LoteriaProject.Context;
 using LoteriaProject.Model;
+using LoteriaProject.Custom;
 
 namespace LoteriaProject.Controllers
 {
@@ -156,6 +157,32 @@ namespace LoteriaProject.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        [HttpPost("upload")]
+        public async Task<IActionResult> Upload(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Archivo no válido");
+
+            // Guardar el archivo temporalmente
+            var filePath = Path.GetTempFileName();
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Crear una instancia de ReadExcel
+            var readExcel = new ReadExcel();
+
+            // Leer y validar datos
+            var tickets = readExcel.ReadExcell(filePath);
+
+            // Insertar en la base de datos
+            await _context.Tickets.AddRangeAsync(tickets);
+            await _context.SaveChangesAsync();
+
+            return Ok($"{tickets.Count} registros insertados");
         }
 
         private bool TicketExists(int id)

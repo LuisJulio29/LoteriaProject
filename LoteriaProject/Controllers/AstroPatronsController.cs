@@ -47,7 +47,7 @@ namespace LoteriaProject.Controllers
         public async Task<ActionResult<AstroPatron>> GetAstroPatronByDate([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
             var astroPatron = await _context.AstroPatrons
-                .Where(p => p.Date.Date == date.Date && p.Jornada == Jornada)
+                .Where(p => p.Date.Month == date.Month && p.Jornada == Jornada)
                 .FirstOrDefaultAsync();
             if (astroPatron == null)
             {
