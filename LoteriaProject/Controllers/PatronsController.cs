@@ -86,7 +86,7 @@ namespace LoteriaProject.Controllers
         [HttpGet("GetRedundancyinDate")]
         public async Task<ActionResult<List<Patron>>> RedundancyinDate([FromQuery] DateTime date)
         {
-            var allPatrons = await _context.Patrons.Where(p => p.Date.Day == date.Day && p.Date.DayOfWeek == date.DayOfWeek).ToListAsync();
+            var allPatrons = await _context.Patrons.Where(p => p.Date.Day == date.Day && p.Date.DayOfWeek == date.DayOfWeek && p.Date.Date != date.Date).ToListAsync();
             if (allPatrons == null)
             {
                 return NotFound();
