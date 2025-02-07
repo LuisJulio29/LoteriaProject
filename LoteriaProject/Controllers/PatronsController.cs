@@ -83,7 +83,7 @@ namespace LoteriaProject.Controllers
             return Ok(redundancies.OrderByDescending(r => r.RedundancyCount).ToList());
         }
 
-        [HttpPost("RedundancyinDate")]
+        [HttpGet("GetRedundancyinDate")]
         public async Task<ActionResult<List<Patron>>> RedundancyinDate([FromQuery] DateTime date)
         {
             var allPatrons = await _context.Patrons.Where(p => p.Date.Day == date.Day && p.Date.DayOfWeek == date.DayOfWeek).ToListAsync();
@@ -95,7 +95,7 @@ namespace LoteriaProject.Controllers
 
         }
 
-        [HttpPost("NumberNotPlayed")]
+        [HttpGet("GetNumbersNotPlayed")]
         public async Task<ActionResult<string[]>> NumberNotPlayed([FromQuery]DateTime date, [FromQuery] string Jornada)
         {
             var tickets = await _context.Tickets.Where(t => t.Date.Date == date.Date && t.Jornada == Jornada).ToListAsync();
@@ -157,6 +157,60 @@ namespace LoteriaProject.Controllers
             }
             var NumbersNotplayed = result.ToArray();
             return Ok(NumbersNotplayed);
+        }
+
+        [HttpGet("GetVoidinDay/{id}")]
+        public async Task<ActionResult<List<Patron>>> VoidinDay(int id)
+        {
+            // Buscar el patrón de referencia de forma asíncrona
+            var patron = await _context.Patrons.FindAsync(id);
+            if (patron == null)
+            {
+                return NotFound($"No se encontró el patrón con ID {id}");
+            }
+            // Validar que PatronNumbers no sea null
+            if (patron.PatronNumbers == null || patron.PatronNumbers.Length == 0)
+            {
+                return BadRequest("El patrón de referencia no tiene números válidos");
+            }
+            if (!patron.PatronNumbers.Contains(0))
+            {
+                return NotFound("No contiene ningun 0 en su Patron");
+            }
+            try
+            {
+                // Obtener todos los patrones que coincidan con el día y jornada, excluyendo el patrón de referencia
+                var patrons = await _context.Patrons
+                    .Where(p => p.Id != patron.Id && p.Date.Day == patron.Date.Day && p.Jornada == patron.Jornada).ToListAsync();
+                if (!patrons.Any())
+                {
+                    return NotFound("No hay otros patrones que cumplan con los requisitos de fecha y jornada");
+                }
+                // Obtener índices de ceros del patrón de referencia
+                var zeroIndices = new HashSet<int>(); // Usando HashSet para búsquedas más eficientes
+                for (int i = 0; i < patron.PatronNumbers.Length; i++)
+                {
+                    if (patron.PatronNumbers[i] == 0)
+                    {
+                        zeroIndices.Add(i);
+                    }
+                }
+                // Filtrar los patrones que coincidan en los mismos ceros
+                var matchingPatrons = patrons
+                    .Where(p => PatronMatchesZeroPattern(p, patron.PatronNumbers.Length, zeroIndices))
+                    .ToList();
+                if (!matchingPatrons.Any())
+                {
+                    return NotFound("No se encontraron otros patrones con los mismos ceros");
+                }
+
+                return Ok(matchingPatrons);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception here if you have logging configured
+                return StatusCode(500, "Error interno al procesar la solicitud");
+            }
         }
         // PUT: api/Patrons/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -280,6 +334,32 @@ namespace LoteriaProject.Controllers
                 }
             }
             return notUsed.OrderBy(x => x).ToList();
+        }
+        private static bool PatronMatchesZeroPattern(Patron patron, int referenceLength, HashSet<int> zeroIndices)
+        {
+            // Verificar longitud
+            if (patron.PatronNumbers == null || patron.PatronNumbers.Length != referenceLength)
+                return false;
+
+            // Verificar que tenga ceros en las mismas posiciones
+            foreach (var index in zeroIndices)
+            {
+                if (patron.PatronNumbers[index] != 0)
+                {
+                    return false;
+                }
+            }
+
+            // Verificar que no tenga ceros adicionales
+            for (int i = 0; i < patron.PatronNumbers.Length; i++)
+            {
+                if (!zeroIndices.Contains(i) && patron.PatronNumbers[i] == 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
