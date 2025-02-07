@@ -71,7 +71,7 @@ namespace LoteriaProject.Controllers
                         matchCount++;
                     }
                 }
-                if (matchCount > 0)
+                if (matchCount > 3)
                 {
                     redundancies.Add(new PatronRedundancy
                     {
@@ -81,6 +81,82 @@ namespace LoteriaProject.Controllers
                 }
             }
             return Ok(redundancies.OrderByDescending(r => r.RedundancyCount).ToList());
+        }
+
+        [HttpPost("RedundancyinDate")]
+        public async Task<ActionResult<List<Patron>>> RedundancyinDate([FromQuery] DateTime date)
+        {
+            var allPatrons = await _context.Patrons.Where(p => p.Date.Day == date.Day && p.Date.DayOfWeek == date.DayOfWeek).ToListAsync();
+            if (allPatrons == null)
+            {
+                return NotFound();
+            }
+            return Ok(allPatrons);
+
+        }
+
+        [HttpPost("NumberNotPlayed")]
+        public async Task<ActionResult<string[]>> NumberNotPlayed([FromQuery]DateTime date, [FromQuery] string Jornada)
+        {
+            var tickets = await _context.Tickets.Where(t => t.Date.Date == date.Date && t.Jornada == Jornada).ToListAsync();
+            if (tickets == null || !tickets.Any())
+            {
+                return NotFound("No se encontraron Tickets");
+            }
+
+            // Inicializar arrays para marcar qué números aparecen en cada posición
+            bool[] usedRow1 = new bool[10];
+            bool[] usedRow2 = new bool[10];
+            bool[] usedRow3 = new bool[10];
+            bool[] usedRow4 = new bool[10];
+
+            // Marcar números usados en cada posición
+            foreach (var ticket in tickets)
+            {
+                if (ticket.Number.Length == 4)
+                {
+                    usedRow1[int.Parse(ticket.Number[0].ToString())] = true;
+                    usedRow2[int.Parse(ticket.Number[1].ToString())] = true;
+                    usedRow3[int.Parse(ticket.Number[2].ToString())] = true;
+                    usedRow4[int.Parse(ticket.Number[3].ToString())] = true;
+                }
+            }
+
+            // Obtener números no usados en cada posición
+            List<int> notUsedRow1 = GetNotUsedNumbers(usedRow1);
+            List<int> notUsedRow2 = GetNotUsedNumbers(usedRow2);
+            List<int> notUsedRow3 = GetNotUsedNumbers(usedRow3);
+            List<int> notUsedRow4 = GetNotUsedNumbers(usedRow4);
+
+            // Formar los números de 4 dígitos
+            List<string> result = new List<string>();
+
+            // Si alguna posición no tiene números no usados, usar "*"
+            if (!notUsedRow1.Any() || !notUsedRow2.Any() || !notUsedRow3.Any() || !notUsedRow4.Any())
+            {
+                string number = "";
+                number += notUsedRow1.Any() ? notUsedRow1[0].ToString() : "*";
+                number += notUsedRow2.Any() ? notUsedRow2[0].ToString() : "*";
+                number += notUsedRow3.Any() ? notUsedRow3[0].ToString() : "*";
+                number += notUsedRow4.Any() ? notUsedRow4[0].ToString() : "*";
+                result.Add(number);
+            }
+            else
+            {
+                // Tomar un número de cada fila en orden para formar los números
+                for (int i = 0; i < Math.Max(Math.Max(notUsedRow1.Count, notUsedRow2.Count),
+                                           Math.Max(notUsedRow3.Count, notUsedRow4.Count)); i++)
+                {
+                    string number = "";
+                    number += i < notUsedRow1.Count ? notUsedRow1[i].ToString() : "*";
+                    number += i < notUsedRow2.Count ? notUsedRow2[i].ToString() : "*";
+                    number += i < notUsedRow3.Count ? notUsedRow3[i].ToString() : "*";
+                    number += i < notUsedRow4.Count ? notUsedRow4[i].ToString() : "*";
+                    result.Add(number);
+                }
+            }
+            var NumbersNotplayed = result.ToArray();
+            return Ok(NumbersNotplayed);
         }
         // PUT: api/Patrons/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -189,9 +265,21 @@ namespace LoteriaProject.Controllers
         }
         public class PatronRedundancy
         {
-            public Patron Patron { get; set; }
+            public required Patron Patron { get; set; }
             public int RedundancyCount { get; set; }
         }
 
+        private List<int> GetNotUsedNumbers(bool[] usedNumbers)
+        {
+            var notUsed = new List<int>();
+            for (int i = 0; i < usedNumbers.Length; i++)
+            {
+                if (!usedNumbers[i])
+                {
+                    notUsed.Add(i);
+                }
+            }
+            return notUsed.OrderBy(x => x).ToList();
+        }
     }
 }
