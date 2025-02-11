@@ -1,11 +1,23 @@
 ﻿using LoteriaProject.Model;
 using OfficeOpenXml;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace LoteriaProject.Custom
 {
     public class ReadExcel
     {
+        private string FormatText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            return string.Join(" ",
+                text.Split(' ')
+                .Select(word => word.Length > 0
+                    ? char.ToUpper(word[0]) + word.Substring(1).ToLower()
+                    : string.Empty)
+                .Where(word => !string.IsNullOrEmpty(word)));
+        }
+
         public List<Ticket> ReadExcell(string filePath)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -19,29 +31,13 @@ namespace LoteriaProject.Custom
 
                 for (int row = 2; row <= rowCount; row++)
                 {
-                    string loteriaText = worksheet.Cells[row, 3].Text.Trim();
-                    string formattedLoteria = string.Empty;
-
-                    if (!string.IsNullOrEmpty(loteriaText))
-                    {
-                        // Dividir el texto en palabras y aplicar el formato a cada una
-                        formattedLoteria = string.Join(" ",
-                            loteriaText.Split(' ')
-                            .Select(word => word.Length > 0
-                                ? char.ToUpper(word[0]) + word.Substring(1).ToLower()
-                                : string.Empty)
-                            .Where(word => !string.IsNullOrEmpty(word)));
-                    }
-
-
                     var ticket = new Ticket
                     {
                         Number = worksheet.Cells[row, 2].Text.Trim(),
-                        Loteria = formattedLoteria,
-                        sign = worksheet.Cells[row, 4].Text.Trim(),
-                        Jornada = worksheet.Cells[row, 5].Text.Trim(),
-                        Date = DateTime.Parse(worksheet.Cells[row, 6].Text.Trim()),
-                        
+                        Loteria = FormatText(worksheet.Cells[row, 3].Text.Trim()),
+                        sign = FormatText(worksheet.Cells[row, 4].Text.Trim()),
+                        Jornada = FormatText(worksheet.Cells[row, 5].Text.Trim()),
+                        Date = DateTime.Parse(worksheet.Cells[row, 6].Text.Trim())
                     };
 
                     if (ticket.Number.Length != 4)
@@ -52,6 +48,5 @@ namespace LoteriaProject.Custom
             }
             return tickets;
         }
-
     }
 }
