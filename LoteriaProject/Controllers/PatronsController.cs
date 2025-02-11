@@ -248,30 +248,33 @@ namespace LoteriaProject.Controllers
         [HttpPost]
         public async Task<ActionResult<Patron>> PostPatron(Patron patron)
         {
-            _context.Patrons.Add(patron);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
+            try
+            {
+                await ValidatePatron(patron);
+                _context.Patrons.Add(patron);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
+            }
+            catch (PatronValidationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
-
         [HttpPost("Calculate")]
         public async Task<ActionResult<Patron>> CalculatePatron([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
-            var jornadasToSearch = Jornada.ToLower() == "dia"? new[] { "Dia", "Tarde" }: new[] { Jornada };
+            var jornadasToSearch = Jornada.ToLower() == "dia" ? new[] { "Dia", "Tarde" } : new[] { Jornada };
 
-            // Obtener tickets que coincidan con la fecha y jornada
             var tickets = await _context.Tickets
                 .Where(t => t.Date.Date == date.Date && jornadasToSearch.Contains(t.Jornada))
                 .ToListAsync();
+
             if (!tickets.Any())
             {
                 return NotFound($"No se encontraron tickets para la fecha {date.ToShortDateString()} y jornada {Jornada}");
             }
 
-            // Inicializar array para contar repeticiones (índice 0-9)
             int[] patronNumbers = new int[10];
-
-            // Contar repeticiones de cada número
             foreach (var ticket in tickets)
             {
                 foreach (char digit in ticket.Number)
@@ -283,7 +286,6 @@ namespace LoteriaProject.Controllers
                 }
             }
 
-            // Crear nuevo patrón
             var patron = new Patron
             {
                 Date = date.Date,
@@ -291,12 +293,20 @@ namespace LoteriaProject.Controllers
                 PatronNumbers = patronNumbers
             };
 
-            // Guardar en la base de datos
-            _context.Patrons.Add(patron);
-            await _context.SaveChangesAsync();
-
-            return Ok(patron);
+            try
+            {
+                await ValidatePatron(patron);
+                _context.Patrons.Add(patron);
+                await _context.SaveChangesAsync();
+                return Ok(patron);
+            }
+            catch (PatronValidationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
+
+
         // DELETE: api/Patrons/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePatron(int id)
@@ -361,5 +371,30 @@ namespace LoteriaProject.Controllers
 
             return true;
         }
-    }
+
+        public class PatronValidationException : Exception
+        {
+            public PatronValidationException(string message) : base(message) { }
+        }
+
+        private async Task ValidatePatron(Patron patron)
+        {
+            if (patron.PatronNumbers == null || patron.PatronNumbers.Length != 10)
+            {
+                throw new PatronValidationException("El patrón debe contener exactamente 10 números");
+            }
+
+            var existingPatron = await _context.Patrons
+                .FirstOrDefaultAsync(p => p.Date.Date == patron.Date.Date &&
+                                         p.Jornada == patron.Jornada);
+
+            if (existingPatron != null)
+            {
+                if (patron.PatronNumbers.SequenceEqual(existingPatron.PatronNumbers))
+                {
+                    throw new PatronValidationException($"Ya existe un patrón idéntico para la fecha {patron.Date.Date:dd/MM/yyyy} y jornada {patron.Jornada}");
+                }
+            }
+        }
+     }
 }
