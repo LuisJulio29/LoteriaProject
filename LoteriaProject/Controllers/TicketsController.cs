@@ -72,7 +72,7 @@ namespace LoteriaProject.Controllers
         [HttpGet("GetAstroTicketByDate")]
         public async Task<ActionResult<IEnumerable<Ticket>>> GetAstroTicketByDate([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
-            var tickets = await _context.Tickets.Where(t => t.Date.Month == date.Month && t.Jornada == Jornada && t.Loteria == "Astro").ToListAsync();
+            var tickets = await _context.Tickets.Where(t => t.Date.Month == date.Month && t.Date.Year == date.Year && t.Jornada == Jornada && t.Loteria == "Astro").ToListAsync();
             if (tickets == null || !tickets.Any())
             {
                 return NotFound();
@@ -137,10 +137,17 @@ namespace LoteriaProject.Controllers
         [HttpPost]
         public async Task<ActionResult<Ticket>> PostTicket(Ticket ticket)
         {
-            _context.Tickets.Add(ticket);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetTicket", new { id = ticket.Id }, ticket);
+            try
+            {
+                await ValidateTicket(ticket);
+                _context.Tickets.Add(ticket);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction("GetTicket", new { id = ticket.Id }, ticket);
+            }
+            catch (TicketValidationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // DELETE: api/Tickets/5
@@ -165,29 +172,66 @@ namespace LoteriaProject.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("Archivo no válido");
 
-            // Guardar el archivo temporalmente
             var filePath = Path.GetTempFileName();
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
 
-            // Crear una instancia de ReadExcel
             var readExcel = new ReadExcel();
-
-            // Leer y validar datos
             var tickets = readExcel.ReadExcell(filePath);
 
-            // Insertar en la base de datos
+            var validationErrors = new List<string>();
+            foreach (var ticket in tickets)
+            {
+                try
+                {
+                    await ValidateTicket(ticket);
+                }
+                catch (TicketValidationException ex)
+                {
+                    validationErrors.Add($"Ticket {ticket.Number}: {ex.Message}");
+                    continue;
+                }
+            }
+
+            if (validationErrors.Any())
+            {
+                return BadRequest(new { Errors = validationErrors });
+            }
+
             await _context.Tickets.AddRangeAsync(tickets);
             await _context.SaveChangesAsync();
-
             return Ok($"{tickets.Count} registros insertados");
         }
 
         private bool TicketExists(int id)
         {
             return _context.Tickets.Any(e => e.Id == id);
+        }
+        public class TicketValidationException : Exception
+        {
+            public TicketValidationException(string message) : base(message) { }
+        }
+
+        private async Task ValidateTicket(Ticket ticket)
+        {
+            // Validación básica
+            if (string.IsNullOrEmpty(ticket.Number) || ticket.Date == default || string.IsNullOrEmpty(ticket.Jornada))
+            {
+                throw new TicketValidationException("Datos del ticket incompletos");
+            }
+
+            // Validación de duplicados
+            var isDuplicate = await _context.Tickets
+                .AnyAsync(e => e.Number == ticket.Number
+                              && e.Date.Date == ticket.Date.Date
+                              && e.Jornada == ticket.Jornada);
+
+            if (isDuplicate)
+            {
+                throw new TicketValidationException($"Ya existe un ticket con el número {ticket.Number} para la fecha {ticket.Date.Date:dd/MM/yyyy} y jornada {ticket.Jornada}");
+            }
         }
     }
 }
