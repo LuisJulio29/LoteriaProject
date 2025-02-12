@@ -306,7 +306,76 @@ namespace LoteriaProject.Controllers
             }
         }
 
-
+        [HttpPost("CalculateRange")]
+        public async Task<ActionResult<IEnumerable<Patron>>> CalculatePatronRange([FromQuery] DateTime dateInit,[FromQuery] string jornadaInit,[FromQuery] DateTime dateFinal,[FromQuery] string jornadaFinal)
+        {
+            if (dateInit > dateFinal)
+            {
+                return BadRequest("La fecha inicial no puede ser posterior a la fecha final");
+            }
+            var results = new List<Patron>();
+            var currentDate = dateInit.Date;
+            var jornadas = new[] { "Dia", "Noche" };
+            bool hasStartedJornadas = false;
+            while (currentDate <= dateFinal.Date)
+            {
+                foreach (var jornada in jornadas)
+                {
+                    if (currentDate == dateInit.Date && !hasStartedJornadas)
+                    {
+                        if (jornada.ToLower() == jornadaInit.ToLower())
+                        {
+                            hasStartedJornadas = true;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    if (currentDate == dateFinal.Date &&
+                        hasStartedJornadas &&
+                        jornada.ToLower() == jornadaFinal.ToLower())
+                    {
+                        try
+                        {
+                            var result = await CalculatePatron(currentDate, jornada);
+                            if (result.Result is OkObjectResult okResult)
+                            {
+                                results.Add((Patron)okResult.Value);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error procesando fecha {currentDate} jornada {jornada}: {ex.Message}");
+                        }
+                        break;
+                    }
+                    try
+                    {
+                        var result = await CalculatePatron(currentDate, jornada);
+                        if (result.Result is NotFoundResult)
+                        {
+                            continue;
+                        }
+                        if (result.Result is OkObjectResult okResult)
+                        {
+                            results.Add((Patron)okResult.Value);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error procesando fecha {currentDate} jornada {jornada}: {ex.Message}");
+                        continue;
+                    }
+                }
+                currentDate = currentDate.AddDays(1);
+            }
+            if (!results.Any())
+            {
+                return NotFound("No se encontraron patrones en el rango de fechas especificado");
+            }
+            return Ok(results);
+        }
         // DELETE: api/Patrons/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePatron(int id)
