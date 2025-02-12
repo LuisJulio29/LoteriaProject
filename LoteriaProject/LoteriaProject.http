@@ -1,6 +1,0 @@
-@LoteriaProject_HostAddress = http://localhost:5030
-
-GET {{LoteriaProject_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
