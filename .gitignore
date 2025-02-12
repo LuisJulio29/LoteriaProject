@@ -364,3 +364,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /LoteriaProject/appsettings.json
 /LoteriaProject/LoteriaProject.http
+/LoteriaProject/appsettings.Development.json
