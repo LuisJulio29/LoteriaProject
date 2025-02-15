@@ -226,11 +226,12 @@ namespace LoteriaProject.Controllers
             var isDuplicate = await _context.Tickets
                 .AnyAsync(e => e.Number == ticket.Number
                               && e.Date.Date == ticket.Date.Date
-                              && e.Jornada == ticket.Jornada);
+                              && e.Jornada == ticket.Jornada &&
+                              e.Loteria == ticket.Loteria);
 
             if (isDuplicate)
             {
-                throw new TicketValidationException($"Ya existe un ticket con el número {ticket.Number} para la fecha {ticket.Date.Date:dd/MM/yyyy} y jornada {ticket.Jornada}");
+                throw new TicketValidationException($"Ya existe un ticket con el número {ticket.Number} para la loteria {ticket.Loteria} en la fecha{ticket.Date.Date:dd/MM/yyyy} y jornada {ticket.Jornada}");
             }
         }
     }
