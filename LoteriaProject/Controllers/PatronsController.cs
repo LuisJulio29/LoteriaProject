@@ -98,7 +98,9 @@ namespace LoteriaProject.Controllers
         [HttpGet("GetNumbersNotPlayed")]
         public async Task<ActionResult<string[]>> NumberNotPlayed([FromQuery]DateTime date, [FromQuery] string Jornada)
         {
-            var tickets = await _context.Tickets.Where(t => t.Date.Date == date.Date && t.Jornada == Jornada).ToListAsync();
+            var excludedTickets = new[] { "Pick 3", "Pick 4", "Winning", "Evening" };
+            var jornadasToSearch = Jornada.ToLower() == "dia" ? new[] { "Dia", "Tarde" } : new[] { Jornada };
+            var tickets = await _context.Tickets.Where(t => t.Date.Date == date.Date && jornadasToSearch.Contains(t.Jornada) && !excludedTickets.Contains(t.Loteria)).ToListAsync();
             if (tickets == null || !tickets.Any())
             {
                 return NotFound("No se encontraron Tickets");
@@ -245,33 +247,20 @@ namespace LoteriaProject.Controllers
 
         // POST: api/Patrons
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Patron>> PostPatron(Patron patron)
-        {
-            try
-            {
-                await ValidatePatron(patron);
-                _context.Patrons.Add(patron);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
-            }
-            catch (PatronValidationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
         [HttpPost("Calculate")]
         public async Task<ActionResult<Patron>> CalculatePatron([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
+            var excludedTickets = new[] { "Pick 3", "Pick 4", "Winning", "Evening" };
             var jornadasToSearch = Jornada.ToLower() == "dia" ? new[] { "Dia", "Tarde" } : new[] { Jornada };
-
             var tickets = await _context.Tickets
-                .Where(t => t.Date.Date == date.Date && jornadasToSearch.Contains(t.Jornada))
+                .Where(t => t.Date.Date == date.Date &&
+                            jornadasToSearch.Contains(t.Jornada) &&
+                            !excludedTickets.Contains(t.Loteria))
                 .ToListAsync();
 
             if (!tickets.Any())
             {
-                return NotFound($"No se encontraron tickets para la fecha {date.ToShortDateString()} y jornada {Jornada}");
+                return NotFound($"No se encontraron tickets válidos para la fecha {date.ToShortDateString()} y jornada {Jornada}");
             }
 
             int[] patronNumbers = new int[10];
