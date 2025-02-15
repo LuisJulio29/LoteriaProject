@@ -9,13 +9,26 @@ namespace LoteriaProject.Custom
         {
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
-
             return string.Join(" ",
                 text.Split(' ')
                 .Select(word => word.Length > 0
                     ? char.ToUpper(word[0]) + word.Substring(1).ToLower()
                     : string.Empty)
                 .Where(word => !string.IsNullOrEmpty(word)));
+        }
+
+        private void ValidateTicketNumber(string number, string loteria, int row)
+        {
+            if (loteria == "Pick 3")
+            {
+                if (number.Length != 3)
+                    throw new ArgumentException($"Para Pick 3, el número debe tener 3 dígitos. Error en fila {row}");
+            }
+            else
+            {
+                if (number.Length != 4)
+                    throw new ArgumentException($"El número debe tener 4 dígitos. Error en fila {row}");
+            }
         }
 
         public List<Ticket> ReadExcell(string filePath)
@@ -40,9 +53,7 @@ namespace LoteriaProject.Custom
                         Date = DateTime.Parse(worksheet.Cells[row, 6].Text.Trim())
                     };
 
-                    if (ticket.Number.Length != 4)
-                        throw new ArgumentException($"Número inválido en fila {row}");
-
+                    ValidateTicketNumber(ticket.Number, ticket.Loteria, row);
                     tickets.Add(ticket);
                 }
             }
