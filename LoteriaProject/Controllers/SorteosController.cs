@@ -42,6 +42,22 @@ namespace LoteriaProject.Controllers
             return sorteo;
         }
 
+        [HttpGet("GetSorteoByNumber/{number}/{serie}")]
+        public async Task<ActionResult<IEnumerable<Sorteo>>> GetSorteoByNumber(string number, string serie)
+        {
+            var numbers = GeneratePermutations(number);
+            var series = GeneratePermutations(serie);
+            string lastThreeDigits = number.Length >= 3 ? number.Substring(number.Length - 3) : number;
+            var sorteos = await _context.Sorteos.Where(s => (numbers.Contains(s.Number) && series.Contains(s.Serie)) || (s.Number.EndsWith(lastThreeDigits) && series.Contains(s.Serie))
+            ).ToListAsync();
+
+            if (sorteos == null || !sorteos.Any() )
+            {
+                return NotFound("No se encontraron sorteos");
+            }
+            return sorteos;
+        }
+
         // PUT: api/Sorteos/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutSorteo(int id, Sorteo sorteo)
@@ -108,6 +124,27 @@ namespace LoteriaProject.Controllers
         public class SorteoValidationException : Exception
         {
             public SorteoValidationException(string message) : base(message) { }
+        }
+        private HashSet<string> GeneratePermutations(string number)
+        {
+            var result = new HashSet<string>();
+            if (number.Length <= 1)
+            {
+                result.Add(number);
+                return result;
+            }
+
+            for (int i = 0; i < number.Length; i++)
+            {
+                char currentChar = number[i];
+                string remainingChars = number.Substring(0, i) + number.Substring(i + 1);
+                var subPermutations = GeneratePermutations(remainingChars);
+                foreach (string subPermutation in subPermutations)
+                {
+                    result.Add(currentChar + subPermutation);
+                }
+            }
+            return result;
         }
 
         private async Task ValidateSorteo(Sorteo sorteo)
