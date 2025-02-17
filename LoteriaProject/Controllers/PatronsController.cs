@@ -105,13 +105,11 @@ namespace LoteriaProject.Controllers
             {
                 return NotFound("No se encontraron Tickets");
             }
-
             // Inicializar arrays para marcar qué números aparecen en cada posición
             bool[] usedRow1 = new bool[10];
             bool[] usedRow2 = new bool[10];
             bool[] usedRow3 = new bool[10];
             bool[] usedRow4 = new bool[10];
-
             // Marcar números usados en cada posición
             foreach (var ticket in tickets)
             {
@@ -123,17 +121,13 @@ namespace LoteriaProject.Controllers
                     usedRow4[int.Parse(ticket.Number[3].ToString())] = true;
                 }
             }
-
             // Obtener números no usados en cada posición
             List<int> notUsedRow1 = GetNotUsedNumbers(usedRow1);
             List<int> notUsedRow2 = GetNotUsedNumbers(usedRow2);
             List<int> notUsedRow3 = GetNotUsedNumbers(usedRow3);
             List<int> notUsedRow4 = GetNotUsedNumbers(usedRow4);
-
             // Formar los números de 4 dígitos
             List<string> result = new List<string>();
-
-            // Si alguna posición no tiene números no usados, usar "*"
             if (!notUsedRow1.Any() || !notUsedRow2.Any() || !notUsedRow3.Any() || !notUsedRow4.Any())
             {
                 string number = "";
@@ -145,7 +139,6 @@ namespace LoteriaProject.Controllers
             }
             else
             {
-                // Tomar un número de cada fila en orden para formar los números
                 for (int i = 0; i < Math.Max(Math.Max(notUsedRow1.Count, notUsedRow2.Count),
                                            Math.Max(notUsedRow3.Count, notUsedRow4.Count)); i++)
                 {
@@ -159,6 +152,32 @@ namespace LoteriaProject.Controllers
             }
             var NumbersNotplayed = result.ToArray();
             return Ok(NumbersNotplayed);
+        }
+
+        [HttpGet("GetTotalForColumn")]
+        public async Task<ActionResult<int[]>> TotalForColumn([FromQuery] DateTime date, [FromQuery] string Jornada)
+        {
+            var excludedTickets = new[] { "Pick 3", "Pick 4", "Winning", "Evening" };
+            var jornadasToSearch = Jornada.ToLower() == "dia" ? new[] { "Dia", "Tarde" } : new[] { Jornada };
+            var tickets = await _context.Tickets
+                .Where(t => t.Date.Date == date.Date && jornadasToSearch.Contains(t.Jornada) && !excludedTickets.Contains(t.Loteria)).ToListAsync();
+            if (!tickets.Any())
+            {
+                return NotFound($"No se encontraron tickets para la fecha {date.ToShortDateString()} y jornada {Jornada}");
+            }
+            int maxLength = tickets.Max(t => t.Number.Length);
+            int[] columnSums = new int[maxLength];
+            foreach (var ticket in tickets)
+            {
+                for (int i = 0; i < ticket.Number.Length; i++)
+                {
+                    if (char.IsDigit(ticket.Number[i]))
+                    {
+                        columnSums[i] += int.Parse(ticket.Number[i].ToString());
+                    }
+                }
+            }
+            return Ok(columnSums);
         }
 
         [HttpGet("GetVoidinDay/{id}")]
@@ -214,8 +233,7 @@ namespace LoteriaProject.Controllers
                 return StatusCode(500, "Error interno al procesar la solicitud");
             }
         }
-        // PUT: api/Patrons/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+      
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPatron(int id, Patron patron)
         {
@@ -245,8 +263,15 @@ namespace LoteriaProject.Controllers
             return NoContent();
         }
 
-        // POST: api/Patrons
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
+        public async Task<ActionResult<Patron>> PostPatron(Patron patron)
+        {
+            _context.Patrons.Add(patron);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
+        }
+
         [HttpPost("Calculate")]
         public async Task<ActionResult<Patron>> CalculatePatron([FromQuery] DateTime date, [FromQuery] string Jornada)
         {
