@@ -76,10 +76,17 @@ namespace LoteriaProject.Controllers
         [HttpPost]
         public async Task<ActionResult<Sorteo>> PostSorteo(Sorteo sorteo)
         {
-            _context.Sorteos.Add(sorteo);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetSorteo", new { id = sorteo.Id }, sorteo);
+            try
+            {
+                await ValidateSorteo(sorteo);
+                _context.Sorteos.Add(sorteo);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction("GetSorteo", new { id = sorteo.Id }, sorteo);
+            }
+            catch (SorteoValidationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // DELETE: api/Sorteos/5
@@ -98,6 +105,31 @@ namespace LoteriaProject.Controllers
             return NoContent();
         }
 
+        public class SorteoValidationException : Exception
+        {
+            public SorteoValidationException(string message) : base(message) { }
+        }
+
+        private async Task ValidateSorteo(Sorteo sorteo)
+        {
+            // Validación básica
+            if (string.IsNullOrEmpty(sorteo.Number) || string.IsNullOrEmpty(sorteo.Serie) || sorteo.Date == default || string.IsNullOrEmpty(sorteo.Jornada))
+            {
+                throw new SorteoValidationException("Datos del ticket incompletos");
+            }
+
+            // Validación de duplicados
+            var isDuplicate = await _context.Sorteos
+                .AnyAsync(e => e.Number == sorteo.Number
+                              && e.Date.Date == sorteo.Date.Date
+                              && e.Jornada == sorteo.Jornada &&
+                              e.Loteria == sorteo.Loteria);
+
+            if (isDuplicate)
+            {
+                throw new SorteoValidationException($"Ya existe una Sorteo con el número {sorteo.Number} - {sorteo.Serie} para la loteria {sorteo.Loteria} en la fecha{sorteo.Date.Date:dd/MM/yyyy} y jornada {sorteo.Jornada}");
+            }
+        }
         private bool SorteoExists(int id)
         {
             return _context.Sorteos.Any(e => e.Id == id);
