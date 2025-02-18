@@ -11,6 +11,5 @@ namespace LoteriaProject.Model
         public required string Serie { get; set; }
         public required DateTime Date { get; set; }
         public required string Loteria { get; set; }
-        public required string Jornada { get; set; }
     }
 }
