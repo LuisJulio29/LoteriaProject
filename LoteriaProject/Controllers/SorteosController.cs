@@ -150,7 +150,7 @@ namespace LoteriaProject.Controllers
         private async Task ValidateSorteo(Sorteo sorteo)
         {
             // Validación básica
-            if (string.IsNullOrEmpty(sorteo.Number) || string.IsNullOrEmpty(sorteo.Serie) || sorteo.Date == default || string.IsNullOrEmpty(sorteo.Jornada))
+            if (string.IsNullOrEmpty(sorteo.Number) || string.IsNullOrEmpty(sorteo.Serie) || sorteo.Date == default)
             {
                 throw new SorteoValidationException("Datos del ticket incompletos");
             }
@@ -158,13 +158,12 @@ namespace LoteriaProject.Controllers
             // Validación de duplicados
             var isDuplicate = await _context.Sorteos
                 .AnyAsync(e => e.Number == sorteo.Number
-                              && e.Date.Date == sorteo.Date.Date
-                              && e.Jornada == sorteo.Jornada &&
+                              && e.Date.Date == sorteo.Date.Date &&
                               e.Loteria == sorteo.Loteria);
 
             if (isDuplicate)
             {
-                throw new SorteoValidationException($"Ya existe una Sorteo con el número {sorteo.Number} - {sorteo.Serie} para la loteria {sorteo.Loteria} en la fecha{sorteo.Date.Date:dd/MM/yyyy} y jornada {sorteo.Jornada}");
+                throw new SorteoValidationException($"Ya existe una Sorteo con el número {sorteo.Number} - {sorteo.Serie} para la loteria {sorteo.Loteria} en la fecha{sorteo.Date.Date:dd/MM/yyyy}");
             }
         }
         private bool SorteoExists(int id)
