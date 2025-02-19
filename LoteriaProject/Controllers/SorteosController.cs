@@ -42,19 +42,65 @@ namespace LoteriaProject.Controllers
             return sorteo;
         }
 
-        [HttpGet("GetSorteoByNumber/{number}/{serie}")]
-        public async Task<ActionResult<IEnumerable<Sorteo>>> GetSorteoByNumber(string number, string serie)
+        [HttpGet("GetSorteoByNumber")]
+        public async Task<ActionResult<IEnumerable<Sorteo>>> GetSorteoByNumber([FromQuery] string? number = null, [FromQuery] string? serie = null)
         {
-            var numbers = GeneratePermutations(number);
-            var series = GeneratePermutations(serie);
-            string lastThreeDigits = number.Length >= 3 ? number.Substring(number.Length - 3) : number;
-            var sorteos = await _context.Sorteos.Where(s => (numbers.Contains(s.Number) && series.Contains(s.Serie)) || (s.Number.EndsWith(lastThreeDigits) && series.Contains(s.Serie))
-            ).ToListAsync();
+            // Si ambos parámetros están vacíos, retornar NotFound
+            if (string.IsNullOrEmpty(number) && string.IsNullOrEmpty(serie))
+            {
+                return NotFound("Debe proporcionar al menos un criterio de búsqueda");
+            }
 
-            if (sorteos == null || !sorteos.Any() )
+            // Inicializar las variables para las permutaciones
+            HashSet<string>? numbers = null;
+            HashSet<string>? series = null;
+            string? lastThreeDigits = null;
+
+            // Generar permutaciones solo si los parámetros no están vacíos
+            if (!string.IsNullOrEmpty(number))
+            {
+                numbers = GeneratePermutations(number);
+                lastThreeDigits = number.Length >= 3 ? number.Substring(number.Length - 3) : number;
+            }
+
+            if (!string.IsNullOrEmpty(serie))
+            {
+                series = GeneratePermutations(serie);
+            }
+
+            // Construir la consulta base
+            var query = _context.Sorteos.AsQueryable();
+
+            // Aplicar filtros según los parámetros proporcionados
+            if (numbers != null && series != null)
+            {
+                // Búsqueda con ambos criterios
+                query = query.Where(s =>
+                    (numbers.Contains(s.Number) && series.Contains(s.Serie)) ||
+                    (s.Number.EndsWith(lastThreeDigits) && series.Contains(s.Serie))
+                );
+            }
+            else if (numbers != null)
+            {
+                // Búsqueda solo por número
+                query = query.Where(s =>
+                    numbers.Contains(s.Number) ||
+                    s.Number.EndsWith(lastThreeDigits)
+                );
+            }
+            else if (series != null)
+            {
+                // Búsqueda solo por serie
+                query = query.Where(s => series.Contains(s.Serie));
+            }
+
+            var sorteos = await query.ToListAsync();
+
+            if (!sorteos.Any())
             {
                 return NotFound("No se encontraron sorteos");
             }
+
             return sorteos;
         }
 
