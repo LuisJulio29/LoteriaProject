@@ -14,5 +14,6 @@ namespace LoteriaProject.Context
         public DbSet<Patron> Patrons { get; set; }
         public DbSet<AstroPatron> AstroPatrons { get; set; }
         public DbSet<Sorteo> Sorteos { get; set; }
+        public DbSet<SorteoPatron> SorteosPatrons { get; set; }
     }
 }
