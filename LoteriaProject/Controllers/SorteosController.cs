@@ -104,6 +104,17 @@ namespace LoteriaProject.Controllers
             return sorteos;
         }
 
+        [HttpGet("GetSorteoByDate")]
+        public async Task<ActionResult<IEnumerable<Sorteo>>> GetSorteoByDate([FromQuery] DateTime date)
+        {
+            var sorteos = await _context.Sorteos
+                .Where(s => s.Date.Date == date.Date ).ToListAsync();
+            if (!sorteos.Any())
+            {
+                return NotFound("No se encontraron sorteos");
+            }
+            return sorteos;
+        }
         // PUT: api/Sorteos/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutSorteo(int id, Sorteo sorteo)
