@@ -266,11 +266,18 @@ namespace LoteriaProject.Controllers
         [HttpPost]
         public async Task<ActionResult<Patron>> PostPatron(Patron patron)
         {
-            _context.Patrons.Add(patron);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
-        }
+            try
+            {
+                await ValidatePatron(patron);
+                _context.Patrons.Add(patron);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction("GetPatron", new { id = patron.Id }, patron);
+            }
+                catch (PatronValidationException ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+            }
 
         [HttpPost("Calculate")]
         public async Task<ActionResult<Patron>> CalculatePatron([FromQuery] DateTime date, [FromQuery] string Jornada)

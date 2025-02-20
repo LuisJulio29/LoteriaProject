@@ -43,7 +43,6 @@ namespace LoteriaProject.Controllers
         }
 
         // PUT: api/SorteoPatrons/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutSorteoPatron(int id, SorteoPatron sorteoPatron)
         {
@@ -74,14 +73,21 @@ namespace LoteriaProject.Controllers
         }
 
         // POST: api/SorteoPatrons
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<SorteoPatron>> PostSorteoPatron(SorteoPatron sorteoPatron)
         {
-            _context.SorteosPatrons.Add(sorteoPatron);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await ValidateSorteoPatron(sorteoPatron);
+                _context.SorteosPatrons.Add(sorteoPatron);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction("GetSorteoPatron", new { id = sorteoPatron.Id }, sorteoPatron);
+            }
+            catch (PatronValidationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
 
-            return CreatedAtAction("GetSorteoPatron", new { id = sorteoPatron.Id }, sorteoPatron);
         }
 
         // DELETE: api/SorteoPatrons/5
@@ -103,6 +109,29 @@ namespace LoteriaProject.Controllers
         private bool SorteoPatronExists(int id)
         {
             return _context.SorteosPatrons.Any(e => e.Id == id);
+        }
+        public class PatronValidationException : Exception
+        {
+            public PatronValidationException(string message) : base(message) { }
+        }
+
+        private async Task ValidateSorteoPatron(SorteoPatron patron)
+        {
+            if (patron.PatronNumbers == null || patron.PatronNumbers.Length != 10)
+            {
+                throw new PatronValidationException("El patrón debe contener exactamente 10 números");
+            }
+
+            var existingPatron = await _context.Patrons
+                .FirstOrDefaultAsync(p => p.Date.Date == patron.Date.Date);
+
+            if (existingPatron != null)
+            {
+                if (patron.PatronNumbers.SequenceEqual(existingPatron.PatronNumbers))
+                {
+                    throw new PatronValidationException($"Ya existe un patrón idéntico para la fecha {patron.Date.Date:dd/MM/yyyy}");
+                }
+            }
         }
     }
 }
