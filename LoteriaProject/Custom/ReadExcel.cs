@@ -59,5 +59,31 @@ namespace LoteriaProject.Custom
             }
             return tickets;
         }
+
+        public List<Sorteo> ReadExcel2(string filePath)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            var sorteos = new List<Sorteo>();
+            FileInfo fileInfo = new FileInfo(filePath);
+
+            using (var package = new ExcelPackage(fileInfo))
+            {
+                ExcelWorksheet worksheet = package.Workbook.Worksheets["Hoja2"];
+                int rowCount = worksheet.Dimension.Rows;
+
+                for(int row = 2; row <= rowCount; row++)
+                {
+                    var sorteo = new Sorteo
+                    {
+                        Number = worksheet.Cells[row, 2].Text.Trim(),
+                        Serie = FormatText(worksheet.Cells[row, 3].Text.Trim()),
+                        Loteria = FormatText(worksheet.Cells[row, 4].Text.Trim()),
+                        Date = DateTime.Parse(worksheet.Cells[row, 5].Text.Trim())
+                    };
+                    sorteos.Add(sorteo);
+                }
+            }
+           return sorteos;
+        }
     }
 }
