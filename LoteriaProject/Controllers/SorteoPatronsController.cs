@@ -29,19 +29,19 @@ namespace LoteriaProject.Controllers
             return await _context.SorteosPatrons.ToListAsync();
         }
         [HttpGet("Search")]
-        public async Task<ActionResult<IEnumerable<SorteoPatron>>> SearchSorteosPatrons(DateTime date)
+        public async Task<ActionResult<SorteoPatron>> SearchSorteosPatrons(DateTime date)
         {
-            var sorteoPatrons = await _context.SorteosPatrons.Where(sp => sp.Date.Date == date.Date).ToListAsync();
-            if (sorteoPatrons == null || !sorteoPatrons.Any())
+            var sorteoPatrons = await _context.SorteosPatrons.Where(sp => sp.Date.Date == date.Date).FirstOrDefaultAsync();
+            if (sorteoPatrons == null)
             {
                 return NotFound();
             }
-            return sorteoPatrons;
+            return sorteoPatrons;   
         }
-        [HttpGet("CalculateRedundancy")]
-        public async Task<ActionResult<List<SorteoPatronRedundancy>>> CalculateRedundancy([FromBody] SorteoPatron sorteoPatron)
+        [HttpPost("CalculateRedundancy")]
+        public async Task<ActionResult<List<SorteoPatronRedundancy>>> CalculateRedundancy([FromBody]SorteoPatron sorteoPatron)
         {
-            var allSorteoPatrons = await _context.SorteosPatrons.Where(sp => sp.Id != sorteoPatron.Id).ToListAsync();
+            var allSorteoPatrons = await _context.SorteosPatrons.Where(s => s.Id != sorteoPatron.Id).ToListAsync();
             var redundancyList = new List<SorteoPatronRedundancy>();
             foreach (var sorteo in allSorteoPatrons)
             {
