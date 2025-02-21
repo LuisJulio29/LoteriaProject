@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LoteriaProject.Context;
 using LoteriaProject.Model;
+using LoteriaProject.Custom;
 
 namespace LoteriaProject.Controllers
 {
@@ -176,6 +177,44 @@ namespace LoteriaProject.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+        [HttpPost("upload")]
+        public async Task<IActionResult> Upload(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Archivo no válido");
+
+            var filePath = Path.GetTempFileName();
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var readExcel = new ReadExcel();
+            var sorteos = readExcel.ReadExcel2(filePath);
+
+            var validationErrors = new List<string>();
+            foreach (var sorteo in sorteos)
+            {
+                try
+                {
+                    await ValidateSorteo(sorteo);
+                }
+                catch (SorteoValidationException ex)
+                {
+                    validationErrors.Add($"Sorteo {sorteo.Number}: {ex.Message}");
+                    continue;
+                }
+            }
+
+            if (validationErrors.Any())
+            {
+                return BadRequest(new { Errors = validationErrors });
+            }
+
+            await _context.Sorteos.AddRangeAsync(sorteos);
+            await _context.SaveChangesAsync();
+            return Ok($"{sorteos.Count} registros insertados");
         }
 
         public class SorteoValidationException : Exception
