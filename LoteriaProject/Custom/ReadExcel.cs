@@ -79,6 +79,7 @@ namespace LoteriaProject.Custom
                         Serie = FormatText(worksheet.Cells[row, 3].Text.Trim()),
                         Loteria = FormatText(worksheet.Cells[row, 4].Text.Trim()),
                         Date = DateTime.Parse(worksheet.Cells[row, 5].Text.Trim())
+
                     };
                     sorteos.Add(sorteo);
                 }
