@@ -202,7 +202,7 @@ namespace LoteriaProject.Controllers
             {
                 // Obtener todos los patrones que coincidan con el día y jornada, excluyendo el patrón de referencia
                 var patrons = await _context.Patrons
-                    .Where(p => p.Id != patron.Id && p.Date.Day == patron.Date.Day && p.Jornada == patron.Jornada).ToListAsync();
+                    .Where(p => p.Id != patron.Id ).ToListAsync();
                 if (!patrons.Any())
                 {
                     return NotFound("No hay otros patrones que cumplan con los requisitos de fecha y jornada");
