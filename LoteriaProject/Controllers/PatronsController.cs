@@ -202,7 +202,7 @@ namespace LoteriaProject.Controllers
             {
                 // Obtener todos los patrones que coincidan con el día y jornada, excluyendo el patrón de referencia
                 var patrons = await _context.Patrons
-                    .Where(p => p.Id != patron.Id ).ToListAsync();
+                    .Where(p => p.Id != patron.Id).ToListAsync();
                 if (!patrons.Any())
                 {
                     return NotFound("No hay otros patrones que cumplan con los requisitos de fecha y jornada");
@@ -413,6 +413,118 @@ namespace LoteriaProject.Controllers
             return NoContent();
         }
 
+        [HttpGet("AnalyzePatternRedundancy")]
+        public async Task<ActionResult<object>> AnalyzePatternRedundancy([FromQuery] int patron1Id, [FromQuery] int patron2Id)
+        {
+            var patron1 = await _context.Patrons.FindAsync(patron1Id);
+            var patron2 = await _context.Patrons.FindAsync(patron2Id);
+            if (patron1 == null || patron2 == null)
+            {
+                return NotFound("No se encontraron los patrones especificados");
+            }
+            var redundanciasList = GenerarListaRedundancias(patron1.PatronNumbers, patron2.PatronNumbers);
+            var numbersToSearch = ObtenerIndicesCoincidencias(redundanciasList);
+            if (!numbersToSearch.Any())
+            {
+                return NotFound("No se encontraron coincidencias entre los patrones");
+            }
+            var (fechaBusqueda, jornadasBusqueda) = DeterminarFechaYJornada(patron1);
+            var tickets = await _context.Tickets
+                .Where(t => t.Date.Date == fechaBusqueda.Date &&
+                            jornadasBusqueda.Contains(t.Jornada)).ToListAsync();
+            if (!tickets.Any())
+            {
+                return NotFound($"No se encontraron tickets para la fecha {fechaBusqueda.ToShortDateString()} y jornadas {string.Join(", ", jornadasBusqueda)}");
+            }
+            var (ticketsWith4Matches, ticketsWith3Matches) = ClasificarTicketsPorCoincidencias(tickets, numbersToSearch);
+            return Ok(new
+            {
+                NumbersToSearch = numbersToSearch,
+                TicketsCon4Coincidencias = ticketsWith4Matches,
+                TicketsCon3Coincidencias = ticketsWith3Matches
+            });
+        }
+        private int[] GenerarListaRedundancias(int[] patron1Numbers, int[] patron2Numbers)
+        {
+            var resultado = new int[10];
+            for (int i = 0; i < 10; i++)
+            {
+                if (patron1Numbers[i] == patron2Numbers[i])
+                {
+                    resultado[i] = patron1Numbers[i];
+                }
+                else
+                {
+                    resultado[i] = 0;
+                }
+            }
+            return resultado;
+        }
+        private List<int> ObtenerIndicesCoincidencias(int[] redundanciasList)
+        {
+            var indices = new List<int>();
+            for (int i = 0; i < redundanciasList.Length; i++)
+            {
+                if (redundanciasList[i] != 0)
+                {
+                    indices.Add(i);
+                }
+            }
+            return indices;
+        }
+        private (DateTime fecha, string[] jornadas) DeterminarFechaYJornada(Patron patron)
+        {
+            DateTime fecha = patron.Date;
+            string[] jornadas;
+            if (patron.Jornada.ToLower() == "dia")
+            {
+                jornadas = new[] { "Noche" };
+            }
+            else
+            {
+                jornadas = new[] { "Dia", "Tarde" };
+                fecha = fecha.AddDays(1);
+            }
+            return (fecha, jornadas);
+        }
+        private (List<Ticket> TicketsWith4Matches, List<Ticket> TicketsWith3Matches) ClasificarTicketsPorCoincidencias(
+     List<Ticket> tickets, List<int> numbersToSearch)
+        {
+            var ticketsWith4Matches = new List<Ticket>();
+            var ticketsWith3Matches = new List<Ticket>();
+            foreach (var ticket in tickets)
+            {
+                int coincidencias = ContarCoincidencias(ticket.Number, numbersToSearch);
+
+                if (coincidencias >= 4)
+                {
+                    ticketsWith4Matches.Add(ticket);
+                }
+                else if (coincidencias == 3)
+                {
+                    ticketsWith3Matches.Add(ticket);
+                }
+            }
+            ticketsWith4Matches = ticketsWith4Matches
+                .OrderByDescending(t => ContarCoincidencias(t.Number, numbersToSearch)).ToList();
+            return (ticketsWith4Matches, ticketsWith3Matches);
+        }
+        private int ContarCoincidencias(string ticketNumber, List<int> numbersToSearch)
+        {
+            int coincidencias = 0;
+            foreach (char digitChar in ticketNumber)
+            {
+                if (char.IsDigit(digitChar))
+                {
+                    int digit = int.Parse(digitChar.ToString());
+                    if (numbersToSearch.Contains(digit))
+                    {
+                        coincidencias++;
+                    }
+                }
+            }
+            return coincidencias;
+        }
         private bool PatronExists(int id)
         {
             return _context.Patrons.Any(e => e.Id == id);
@@ -486,5 +598,5 @@ namespace LoteriaProject.Controllers
                 }
             }
         }
-     }
+    }
 }
