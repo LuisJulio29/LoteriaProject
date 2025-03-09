@@ -26,7 +26,7 @@ namespace LoteriaProject.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Sorteo>>> GetSorteos()
         {
-            return await _context.Sorteos.ToListAsync();
+            return await _context.Sorteos.OrderByDescending(s => s.Date).ToListAsync();
         }
 
         // GET: api/Sorteos/5

@@ -26,9 +26,8 @@ namespace LoteriaProject.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Ticket>>> GetTickets()
         {
-            return await _context.Tickets.ToListAsync();
+            return await _context.Tickets.OrderByDescending(t => t.Date).ToListAsync();
         }
-
         // GET: api/Tickets/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Ticket>> GetTicket(int id)
