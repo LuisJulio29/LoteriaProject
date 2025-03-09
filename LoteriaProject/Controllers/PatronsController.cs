@@ -439,6 +439,7 @@ namespace LoteriaProject.Controllers
             var (ticketsWith4Matches, ticketsWith3Matches) = ClasificarTicketsPorCoincidencias(tickets, numbersToSearch);
             return Ok(new
             {
+                patron = patron1,
                 NumbersToSearch = numbersToSearch,
                 TicketsCon4Coincidencias = ticketsWith4Matches,
                 TicketsCon3Coincidencias = ticketsWith3Matches
