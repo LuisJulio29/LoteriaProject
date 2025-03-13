@@ -181,51 +181,71 @@ namespace LoteriaProject.Controllers
         }
 
         [HttpGet("GetVoidinDay/{id}")]
-        public async Task<ActionResult<List<Patron>>> VoidinDay(int id)
+        public async Task<ActionResult<List<PatronForVoid>>> VoidinDay(int id)
         {
             // Buscar el patrón de referencia de forma asíncrona
-            var patron = await _context.Patrons.FindAsync(id);
-            if (patron == null)
+            var referencePatron = await _context.Patrons.FindAsync(id);
+            if (referencePatron == null)
             {
                 return NotFound($"No se encontró el patrón con ID {id}");
             }
+
             // Validar que PatronNumbers no sea null
-            if (patron.PatronNumbers == null || patron.PatronNumbers.Length == 0)
+            if (referencePatron.PatronNumbers == null || referencePatron.PatronNumbers.Length == 0)
             {
                 return BadRequest("El patrón de referencia no tiene números válidos");
             }
-            if (!patron.PatronNumbers.Contains(0))
+
+            if (!referencePatron.PatronNumbers.Contains(0))
             {
                 return NotFound("No contiene ningun 0 en su Patron");
             }
+
             try
             {
                 // Obtener todos los patrones que coincidan con el día y jornada, excluyendo el patrón de referencia
                 var patrons = await _context.Patrons
-                    .Where(p => p.Id != patron.Id).ToListAsync();
+                    .Where(p => p.Id != referencePatron.Id).ToListAsync();
+
                 if (!patrons.Any())
                 {
                     return NotFound("No hay otros patrones que cumplan con los requisitos de fecha y jornada");
                 }
+
                 // Obtener índices de ceros del patrón de referencia
                 var zeroIndices = new HashSet<int>(); // Usando HashSet para búsquedas más eficientes
-                for (int i = 0; i < patron.PatronNumbers.Length; i++)
+                for (int i = 0; i < referencePatron.PatronNumbers.Length; i++)
                 {
-                    if (patron.PatronNumbers[i] == 0)
+                    if (referencePatron.PatronNumbers[i] == 0)
                     {
                         zeroIndices.Add(i);
                     }
                 }
                 // Filtrar los patrones que coincidan en los mismos ceros
                 var matchingPatrons = patrons
-                    .Where(p => PatronMatchesZeroPattern(p, patron.PatronNumbers.Length, zeroIndices))
+                    .Where(p => PatronMatchesZeroPattern(p, referencePatron.PatronNumbers.Length, zeroIndices))
                     .ToList();
+
                 if (!matchingPatrons.Any())
                 {
                     return NotFound("No se encontraron otros patrones con los mismos ceros");
                 }
+                var result = matchingPatrons.Select(p =>
+                {
+                    // Generar la lista de redundancias
+                    var redundanciasList = GenerarListaRedundancias(referencePatron.PatronNumbers, p.PatronNumbers);
 
-                return Ok(matchingPatrons);
+                    // Obtener los índices de coincidencias
+                    var indicesCoincidencias = ObtenerIndicesCoincidencias(redundanciasList);
+
+                    return new PatronForVoid
+                    {
+                        Patron = p,
+                        RedundancyNumbers = indicesCoincidencias.ToArray()
+                    };
+                }).ToList();
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -233,7 +253,29 @@ namespace LoteriaProject.Controllers
                 return StatusCode(500, "Error interno al procesar la solicitud");
             }
         }
-      
+
+        // Método auxiliar para verificar si un patrón coincide con el patrón de ceros
+        private bool PatronMatchesZeroPattern(Patron patron, int length, HashSet<int> zeroIndices)
+        {
+            // Verificar que el patrón tenga números válidos
+            if (patron.PatronNumbers == null || patron.PatronNumbers.Length != length)
+            {
+                return false;
+            }
+
+            // Verificar que todos los índices de cero del patrón de referencia 
+            // también sean ceros en este patrón
+            foreach (var index in zeroIndices)
+            {
+                if (index >= patron.PatronNumbers.Length || patron.PatronNumbers[index] != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPatron(int id, Patron patron)
         {
@@ -456,7 +498,7 @@ namespace LoteriaProject.Controllers
                 }
                 else
                 {
-                    resultado[i] = 0;
+                    resultado[i] = 99;
                 }
             }
             return resultado;
@@ -466,7 +508,7 @@ namespace LoteriaProject.Controllers
             var indices = new List<int>();
             for (int i = 0; i < redundanciasList.Length; i++)
             {
-                if (redundanciasList[i] != 0)
+                if (redundanciasList[i] != 99)
                 {
                     indices.Add(i);
                 }
@@ -536,6 +578,12 @@ namespace LoteriaProject.Controllers
             public int RedundancyCount { get; set; }
         }
 
+        public class PatronForVoid
+        {
+            public required Patron Patron { get; set; }
+            public required int[] RedundancyNumbers { get; set; }
+        }
+
         private List<int> GetNotUsedNumbers(bool[] usedNumbers)
         {
             var notUsed = new List<int>();
@@ -548,33 +596,6 @@ namespace LoteriaProject.Controllers
             }
             return notUsed.OrderBy(x => x).ToList();
         }
-        private static bool PatronMatchesZeroPattern(Patron patron, int referenceLength, HashSet<int> zeroIndices)
-        {
-            // Verificar longitud
-            if (patron.PatronNumbers == null || patron.PatronNumbers.Length != referenceLength)
-                return false;
-
-            // Verificar que tenga ceros en las mismas posiciones
-            foreach (var index in zeroIndices)
-            {
-                if (patron.PatronNumbers[index] != 0)
-                {
-                    return false;
-                }
-            }
-
-            // Verificar que no tenga ceros adicionales
-            for (int i = 0; i < patron.PatronNumbers.Length; i++)
-            {
-                if (!zeroIndices.Contains(i) && patron.PatronNumbers[i] == 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
         public class PatronValidationException : Exception
         {
             public PatronValidationException(string message) : base(message) { }
