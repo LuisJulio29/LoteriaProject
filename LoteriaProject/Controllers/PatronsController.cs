@@ -56,6 +56,30 @@ namespace LoteriaProject.Controllers
             return patron;
         }
 
+        [HttpPost("GetPatronByNumbers")]
+        public async Task<ActionResult<IEnumerable<Patron>>> GetPatronByNumbers([FromBody] int[] numbers)
+        {
+            if (numbers == null || numbers.Length != 10)
+            {
+                return BadRequest("Se requiere un array de exactamente 10 números.");
+            }
+            const int CUALQUIER_VALOR = -1; 
+            var patrones = await _context.Patrons.ToListAsync();
+            var patronesCoincidentes = patrones.Where(patron =>
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    if (numbers[i] != CUALQUIER_VALOR && patron.PatronNumbers[i] != numbers[i])
+                    {
+                        return false;
+                    }
+                }return true;}).ToList();
+            if (!patronesCoincidentes.Any())
+            {
+                return NotFound("No se encontraron patrones coincidentes.");
+            }
+            return Ok(patronesCoincidentes);
+        }
         [HttpPost("CalculateRedundancy")]
         public async Task<ActionResult<List<PatronRedundancy>>> CalculateRedundancy([FromBody] Patron patron)
         {
@@ -600,7 +624,6 @@ namespace LoteriaProject.Controllers
         {
             public PatronValidationException(string message) : base(message) { }
         }
-
         private async Task ValidatePatron(Patron patron)
         {
             if (patron.PatronNumbers == null || patron.PatronNumbers.Length != 10)
