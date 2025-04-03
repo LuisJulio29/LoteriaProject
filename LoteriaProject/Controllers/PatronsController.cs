@@ -213,31 +213,23 @@ namespace LoteriaProject.Controllers
             {
                 return NotFound($"No se encontró el patrón con ID {id}");
             }
-
-            // Validar que PatronNumbers no sea null
             if (referencePatron.PatronNumbers == null || referencePatron.PatronNumbers.Length == 0)
             {
                 return BadRequest("El patrón de referencia no tiene números válidos");
             }
-
             if (!referencePatron.PatronNumbers.Contains(0))
             {
-                return NotFound("No contiene ningun 0 en su Patron");
+                return NotFound("No contiene ningún 0 en su Patrón");
             }
-
             try
             {
-                // Obtener todos los patrones que coincidan con el día y jornada, excluyendo el patrón de referencia
                 var patrons = await _context.Patrons
                     .Where(p => p.Id != referencePatron.Id).ToListAsync();
-
                 if (!patrons.Any())
                 {
                     return NotFound("No hay otros patrones que cumplan con los requisitos de fecha y jornada");
                 }
-
-                // Obtener índices de ceros del patrón de referencia
-                var zeroIndices = new HashSet<int>(); // Usando HashSet para búsquedas más eficientes
+                var zeroIndices = new List<int>();
                 for (int i = 0; i < referencePatron.PatronNumbers.Length; i++)
                 {
                     if (referencePatron.PatronNumbers[i] == 0)
@@ -245,59 +237,44 @@ namespace LoteriaProject.Controllers
                         zeroIndices.Add(i);
                     }
                 }
-                // Filtrar los patrones que coincidan en los mismos ceros
                 var matchingPatrons = patrons
-                    .Where(p => PatronMatchesZeroPattern(p, referencePatron.PatronNumbers.Length, zeroIndices))
+                    .Where(p => PatronMatchesAtLeastOneZero(p, referencePatron.PatronNumbers.Length, zeroIndices))
                     .ToList();
-
                 if (!matchingPatrons.Any())
                 {
-                    return NotFound("No se encontraron otros patrones con los mismos ceros");
+                    return NotFound("No se encontraron otros patrones con al menos un cero coincidente");
                 }
                 var result = matchingPatrons.Select(p =>
                 {
-                    // Generar la lista de redundancias
                     var redundanciasList = GenerarListaRedundancias(referencePatron.PatronNumbers, p.PatronNumbers);
-
-                    // Obtener los índices de coincidencias
                     var indicesCoincidencias = ObtenerIndicesCoincidencias(redundanciasList);
-
                     return new PatronForVoid
                     {
                         Patron = p,
                         RedundancyNumbers = indicesCoincidencias.ToArray()
                     };
                 }).ToList();
-
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                // Log the exception here if you have logging configured
                 return StatusCode(500, "Error interno al procesar la solicitud");
             }
         }
-
-        // Método auxiliar para verificar si un patrón coincide con el patrón de ceros
-        private bool PatronMatchesZeroPattern(Patron patron, int length, HashSet<int> zeroIndices)
+        private bool PatronMatchesAtLeastOneZero(Patron patron, int length, List<int> zeroIndices)
         {
-            // Verificar que el patrón tenga números válidos
             if (patron.PatronNumbers == null || patron.PatronNumbers.Length != length)
             {
                 return false;
             }
-
-            // Verificar que todos los índices de cero del patrón de referencia 
-            // también sean ceros en este patrón
             foreach (var index in zeroIndices)
             {
-                if (index >= patron.PatronNumbers.Length || patron.PatronNumbers[index] != 0)
+                if (index < patron.PatronNumbers.Length && patron.PatronNumbers[index] == 0)
                 {
-                    return false;
+                    return true;
                 }
             }
-
-            return true;
+            return false;
         }
 
         [HttpPut("{id}")]
@@ -554,8 +531,7 @@ namespace LoteriaProject.Controllers
             }
             return (fecha, jornadas);
         }
-        private (List<Ticket> TicketsWith4Matches, List<Ticket> TicketsWith3Matches) ClasificarTicketsPorCoincidencias(
-     List<Ticket> tickets, List<int> numbersToSearch)
+        private (List<Ticket> TicketsWith4Matches, List<Ticket> TicketsWith3Matches) ClasificarTicketsPorCoincidencias(List<Ticket> tickets, List<int> numbersToSearch)
         {
             var ticketsWith4Matches = new List<Ticket>();
             var ticketsWith3Matches = new List<Ticket>();
