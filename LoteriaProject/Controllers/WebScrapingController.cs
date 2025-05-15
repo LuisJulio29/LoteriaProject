@@ -30,32 +30,7 @@ namespace LoteriaProject.Controllers
             _logger = logger;
             _context = context;
         }
-
-        /// <summary>
-        /// Obtiene los resultados de loterías directamente desde la web sin guardarlos en la base de datos
-        /// </summary>
-        [HttpGet("ScrapeLoterias")]
-        public async Task<ActionResult<IEnumerable<Ticket>>> ScrapeLoterias()
-        {
-            try
-            {
-                var tickets = await ScrapeLoteriasDeHoy(_logger);
-                if (tickets == null || !tickets.Any())
-                {
-                    return NotFound("No se encontraron resultados de loterías.");
-                }
-                return Ok(tickets);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al realizar web scraping");
-                return StatusCode(500, $"Error interno: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Obtiene los resultados de loterías desde la web y los guarda en la base de datos
-        /// </summary>
         [HttpGet("ScrapeAndSaveTickets")]
         public async Task<ActionResult<ScrapingResult>> ScrapeAndSaveTickets()
         {
@@ -80,8 +55,6 @@ namespace LoteriaProject.Controllers
                     try
                     {
                         await ValidateTicket(ticket);
-
-                        // Si pasa validación, guardar en la base de datos
                         _context.Tickets.Add(ticket);
                         await _context.SaveChangesAsync();
                         result.SavedTickets++;
@@ -99,7 +72,6 @@ namespace LoteriaProject.Controllers
                         result.Errors.Add($"Lotería: {ticket.Loteria}, Fecha: {ticket.Date:dd/MM/yyyy}, Jornada: {ticket.Jornada}, Número: {ticket.Number} - Error inesperado: {ex.Message}");
                     }
                 }
-
                 return Ok(result);
             }
             catch (Exception ex)
@@ -108,38 +80,13 @@ namespace LoteriaProject.Controllers
                 return StatusCode(500, $"Error interno: {ex.Message}");
             }
         }
-
-        /// <summary>
-        /// Endpoint para guardar un ticket individualmente
-        /// </summary>
-        [HttpPost]
-        public async Task<ActionResult<Ticket>> PostTicket(Ticket ticket)
-        {
-            try
-            {
-                await ValidateTicket(ticket);
-                _context.Tickets.Add(ticket);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction("GetTicket", new { id = ticket.Id }, ticket);
-            }
-            catch (TicketValidationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        /// <summary>
         /// Valida un ticket antes de guardarlo en la base de datos
-        /// </summary>
         private async Task ValidateTicket(Ticket ticket)
         {
-            // Validación básica
             if (string.IsNullOrEmpty(ticket.Number) || ticket.Date == default || string.IsNullOrEmpty(ticket.Jornada))
             {
                 throw new TicketValidationException("Datos del ticket incompletos");
             }
-
-            // Validación de duplicados
             var isDuplicate = await _context.Tickets
                 .AnyAsync(e => e.Number == ticket.Number
                               && e.Date.Date == ticket.Date.Date
@@ -149,35 +96,26 @@ namespace LoteriaProject.Controllers
             {
                 throw new TicketValidationException($"Ya existe un ticket con el número {ticket.Number} para la loteria {ticket.Loteria} en la fecha {ticket.Date.Date:dd/MM/yyyy} y jornada {ticket.Jornada}");
             }
-
-            // Validación adicional para el caso de Astro
             if (ticket.Loteria.Equals("Astro", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(ticket.sign))
             {
                 throw new TicketValidationException("El signo zodiacal es obligatorio para la lotería Astro");
             }
-
-            // Validación de formato de número según tipo de lotería (se puede extender si es necesario)
             if (!ValidateNumberFormat(ticket))
             {
                 throw new TicketValidationException($"El formato del número '{ticket.Number}' no es válido para la lotería {ticket.Loteria}");
             }
         }
-
-        /// <summary>
         /// Valida el formato del número según el tipo de lotería
-        /// </summary>
         private bool ValidateNumberFormat(Ticket ticket)
         {
             // Esta validación se puede ampliar según las reglas específicas de cada lotería
             if (string.IsNullOrEmpty(ticket.Number))
                 return false;
-
             // Para Astro, validar que sea numérico y tenga 4 dígitos
             if (ticket.Loteria.Equals("Astro", StringComparison.OrdinalIgnoreCase))
             {
                 return ticket.Number.Length == 4 && ticket.Number.All(char.IsDigit);
             }
-
             // Validación general para otras loterías (solo dígitos)
             return ticket.Number.All(char.IsDigit);
         }
@@ -342,10 +280,9 @@ namespace LoteriaProject.Controllers
                             Loteria = loteria,
                             Jornada = jornada,
                             Date = fecha,
-                            Number = numero,      // 'numero' ahora SÓLO contiene los dígitos
-                            sign = signoZodiaco   // 'signoZodiaco' contiene el signo extraído o está vacío
+                            Number = numero,   
+                            sign = signoZodiaco   
                         };
-
                         tickets.Add(ticket);
                     }
                     catch (Exception ex)
@@ -355,7 +292,6 @@ namespace LoteriaProject.Controllers
                     }
                 }
             }
-
             return tickets;
         }
 
