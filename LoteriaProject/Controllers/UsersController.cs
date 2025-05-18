@@ -98,7 +98,7 @@ namespace LoteriaProject.Controllers
             {
                 UserName = userDTO.UserName,
                 Password = _utilities.EncryptPassword(userDTO.Password),
-                Role = UserRole.User
+                Role = UserRole.Admin,
             };
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
